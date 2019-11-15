@@ -1,41 +1,66 @@
-import React, { useState, KeyboardEventHandler } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import ReactDOM from "react-dom";
 import { useSpring, config } from "react-spring";
 import { useGesture } from "react-with-gesture";
-import { Container, Card, Text, ProgressBar, Button } from "./styles.js";
+import { Container, Card, Text, ProgressBar, Ball } from "./styles.js";
 
 function App() {
-  const [toggle, setToggle] = useState(false);
-  const [key, setPressedKey] = useState("");
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [progress, setProgress] = useState(100);
-  const [bind, { delta, down }] = useGesture();
+  const [isOver, setIsOver] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  const [bind, { delta, down, xy }] = useGesture();
+  const cardRef = useRef();
   const props = useSpring({
-    config: config.wobbly,
-    boxShadow: `0px ${down ? "1px  2.5px" : "2px 5px"} #ccc`,
-    transform: `scale(${down ? 0.98 : 1})`
+    //config: config.default,
+    boxShadow: `0px ${!down ? "2px  2px" : "5px 10px"} #ccc`,
+    perspective: 400,
+    transform: `scale(${isOver ? 0.75 : 1}) translate3d(${
+      down ? delta[0] + offset.x : offset.x
+    }px,${down ? delta[1] + offset.y : offset.y}px,${down ? 100 : 0}px)`
   });
+  const cardProps = useSpring({
+    //config: config.default,
+    //boxShadow: `0px ${!down ? "2px  2px" : "5px 10px"} #ccc`,
+    transform: ` scale(${isOver ? 1.2 : 1})`
+  });
+
   const progressStyle = useSpring({
     config: config.wobbly,
     width: `${progress}%`
   });
-  document.addEventListener("keypress", ev => {
-    setPressedKey(ev.key);
-    console.log(ev);
-  });
+
+  useEffect(() => {
+    if (isItOver()) setIsOver(true);
+    else setIsOver(false);
+    if (!down) {
+      console.log("out down", { delta, xy });
+      setOffset({ x: offset.x + delta[0], y: offset.y + delta[1] });
+      if (isItOver()) {
+        console.log("do the thing :D");
+      }
+    }
+  }, [xy, down]);
+  function isItOver() {
+    const { x, y, height, width } = cardRef.current.getBoundingClientRect();
+    return (
+      xy[0] >= x && xy[0] <= x + width && xy[1] >= y && xy[1] <= y + height
+    );
+  }
   return (
     <Container>
-      <Card>
-        <Text>Some Text Here!</Text>
-        <ProgressBar style={progressStyle} />
+      <Card style={cardProps} key="abcdef" ref={cardRef}>
+        <Text>{isOver ? "" : down ? "Over me" : "Progress modal"}</Text>
+        {/* <ProgressBar style={progressStyle} /> */}
       </Card>
 
-      <Button
+      <Ball
         {...bind()}
         style={props}
         onClick={() => setProgress(progress == 100 ? 0 : progress + 10)}
       >
-        + 10%
-      </Button>
+        <Text>{down ? "Drop" : "Drag me"}</Text>
+      </Ball>
     </Container>
   );
 }
